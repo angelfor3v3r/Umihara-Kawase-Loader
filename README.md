@@ -4,6 +4,8 @@ A simple dinput8.dll wrapper DLL that allows extra DLL loading and rebindable ke
 ### Usage
 Download the latest release zip and place the zip contents into the root directory of the game. Read `umi_loader/config.ini` thoroughly for extra details.
 
+Your ingame "keybind" settings must look like this: https://i.imgur.com/o8V25ii.png
+
 Optional: Place all the extra DLLs you want loaded into the `umi_loader/dlls` directory. Note: There isn't a specific order here when other DLLs are loaded since the filesystem iteration order is unspecified.
 
 Here's an example of what your folder structure should look like after you extracted the release zip (the extra DLLs are optional, don't worry about them if you don't need them)
