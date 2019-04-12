@@ -1,0 +1,8 @@
+LIBRARY dinput8
+EXPORTS
+    DirectInput8Create  = DirectInput8Create_wrapper  @1
+    DllCanUnloadNow     = DllCanUnloadNow_wrapper     PRIVATE
+    DllGetClassObject   = DllGetClassObject_wrapper   PRIVATE
+    DllRegisterServer   = DllRegisterServer_wrapper   PRIVATE
+    DllUnregisterServer = DllUnregisterServer_wrapper PRIVATE
+    GetdfDIJoystick     = GetdfDIJoystick_wrapper     @6
