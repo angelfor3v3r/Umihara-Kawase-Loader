@@ -1,5 +1,5 @@
 # Umihara Kawase Loader
-A simple dinput8.dll wrapper DLL that allows extra DLL loading and rebindable keys for all 3 **Umihara Kawase** PC games.
+A simple dinput8.dll wrapper DLL that allows extra DLL loading and rebindable keys for the **Umihara Kawase PC game series**.
 
 ### Usage
 Download the latest release zip and place the zip contents into the root directory of the game(s). **Read `umi_loader/config.ini` thoroughly for extra details.**
