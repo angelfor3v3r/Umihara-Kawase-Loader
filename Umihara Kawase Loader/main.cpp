@@ -14,6 +14,7 @@
                            n0x
                            mpu
                            dan
+                           keegan
 */
 
 //
@@ -62,9 +63,6 @@ static std::vector< UserKeyData > g_user_keybinds = {
 //
 // fwd declare funcs
 //
-
-// hooked funcs
-static NOINLINE int __fastcall input_handler( InputData *input_data, uintptr_t edx );
 
 //
 // global vars
@@ -186,33 +184,29 @@ static NOINLINE bool check_valid_dll( std::wstring_view filename ) {
     IMAGE_DOS_HEADER *dos;
     IMAGE_NT_HEADERS *nt;
 
-    // open up file
-    // map file to memory
-    // get base address
-    const auto file = CreateFileW( filename.data(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
-    if( file == INVALID_HANDLE_VALUE )
+    // open up file at end
+    auto file = std::ifstream( filename, ( std::ios::ate | std::ios::binary ) );
+    if( !file )
+        return false;
+    
+    // get filesize
+    const auto file_size = file.rdbuf()->pubseekoff( 0, std::ios_base::cur, std::ios_base::in );
+    
+    // go back to start, since we opened at the end
+    file.seekg( 0 );
+    
+    // allocate buffer
+    auto file_buffer = std::vector< char >( (size_t)file_size );
+    
+    // read file to buffer
+    if( !file.read( file_buffer.data(), file_size ) )
         return false;
 
-    const auto file_mapping = CreateFileMappingW( file, nullptr, PAGE_READONLY, 0, 0, 0 );
-    if( !file_mapping ) {
-        CloseHandle( file );
-
-        return false;
-    }
-
-    const auto file_base = MapViewOfFile( file_mapping, FILE_MAP_READ, 0, 0, 0 );
-    if( !file_base ) {
-        CloseHandle( file );
-        CloseHandle( file_mapping );
-
-        return false;
-    }
-
-    // get file headers, return if this isn't a valid image file
-    if( !Utils::get_pe_file_headers( (uintptr_t)file_base, dos, nt ) )
+    // get file headers
+    // make sure this is a DLL
+    if( !Utils::get_pe_file_headers( (uintptr_t)( file_buffer.data() ), dos, nt ) )
         return false;
 
-    // not a dll...
     if( !( nt->FileHeader.Characteristics & IMAGE_FILE_DLL ) )
         return false;
 
@@ -220,14 +214,14 @@ static NOINLINE bool check_valid_dll( std::wstring_view filename ) {
 }
 
 static NOINLINE bool load_dlls() {
-    g_log->info( L"Trying to load extra DLLs (if any)" );
-
     uint32_t loaded_amt = 0;
+
+    g_log->info( L"Trying to load extra DLLs (if any)" );
 
     // iterate files
     for( const auto &f : std::filesystem::directory_iterator( g_path_loader_dll_dir ) ) {
-        // make sure this file actually exists
-        if( !f.exists() )
+        // skip bad files
+        if( !f.exists() || f.is_directory() )
             continue;
 
         // convert to path object
@@ -250,7 +244,7 @@ static NOINLINE bool load_dlls() {
 
         // skip bad PE file
         if( !check_valid_dll( filename ) ) {
-            g_log->error( L"Bad DLL file header: \"{}\"", filename );
+            g_log->error( L"Invalid DLL file: \"{}\"", filename );
 
             continue;
         }
@@ -262,10 +256,10 @@ static NOINLINE bool load_dlls() {
             continue;
         }
 
+        g_log->info( L"Loaded DLL: \"{}\"", filename );
+
         // keep track of amount
         ++loaded_amt;
-
-        g_log->info( L"Loaded DLL: \"{}\"", filename );
     }
 
     g_log->info( L"Extra DLL loading done, loaded {} {}", loaded_amt, ( loaded_amt == 1 ) ? L"DLL" : L"DLLs" );
@@ -282,7 +276,6 @@ static NOINLINE std::optional< uint32_t > umi_key_to_dinput_key( uint32_t key ) 
     // skip an index, game keys are seperated like this...
     // don't scan real dinput keys, only game keys
     for( uint32_t i = 0; i < KEY_LIST_SIZE; i += 2 ) {
-        // find key in list
         // real key code is back an index
         if( g_key_list[ i ] == key )
             return g_key_list[ i - 1 ];
@@ -307,8 +300,7 @@ static NOINLINE void modify_input_data( InputData *input_data ) {
     if( input_data->m_focus_flag != UMI_FOCUSED )
         return;
 
-    // we could read the device state keys off stack (EBP - 0x104)
-    // but let's just grab a new device state
+    // capture keyboard state
     const auto dihr = input_data->m_dinput_device->GetDeviceState( sizeof( m_key_states ), &m_key_states );
     if( dihr != DI_OK )
         return;
@@ -318,10 +310,10 @@ static NOINLINE void modify_input_data( InputData *input_data ) {
 
     // check for key(s) being pressed
     for( const auto &b : g_user_keybinds ) {
-        // this key is only valid on the first game
-        // skip on other games
-        if( b.m_umi_key_state == UMI_KEY_SELECT && g_game_ver_id != UMI_GAME_KAWASE )
-            continue;
+        // // this key is only valid on the first game
+        // // skip on other games
+        // if( b.m_umi_key_state == UMI_KEY_SELECT && g_game_ver_id != UMI_GAME_KAWASE )
+        //     continue;
 
         // key is pressed, add to keybind flag
         if( is_key_pressed( b.m_dinput_key ) )
@@ -507,7 +499,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
         }
     }
 
-    // log...
+    // valid?
     if( !g_input_hander_func_addr ) {
         g_log->error( L"Failed to find input handler func" );
 
@@ -565,11 +557,8 @@ int __stdcall DllMain( HINSTANCE instance, ulong_t reason_for_call, void *reserv
 
         // ... now create our init thread
         const auto thread = CreateThread( nullptr, 0, init_thread, nullptr, 0, nullptr );
-        if( !thread ) {
-            g_log->error( L"Failed to create init thread" );
-
+        if( !thread )
             return 0;
-        }
 
         CloseHandle( thread );
 
