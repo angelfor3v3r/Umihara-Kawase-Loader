@@ -27,17 +27,20 @@ using hash32_t = FNV1aHash::T::HashBase< uint32_t >;
 //
 
 namespace FNV1aHash {
+
     //
     // hash types, etc
     //
 
     namespace T {
+
         //
         // FNV constants
         //
 
         constexpr uint32_t FNV_BASIS_32 = 0x811C9DC5;
         constexpr uint32_t FNV_PRIME_32 = 0x1000193;
+
     } // namespace T
 
     //
@@ -56,10 +59,10 @@ namespace FNV1aHash {
         // get low / high bytes then hash all bytes
         const auto lo = (uint8_t)( value & 0xFF );
         const auto hi = (uint8_t)( ( value >> 8 ) & 0xFF );
-    
+
         hash = hash_byte_32( lo, hash );
         hash = hash_byte_32( hi, hash );
-    
+
         return hash;
     }
 
@@ -125,4 +128,5 @@ namespace FNV1aHash {
     FORCEINLINE hash32_t get_32( std::wstring_view wstr ) {
         return get_32( (uint16_t *)wstr.data(), wstr.size() );
     }
+
 } // namespace FNV1aHash

@@ -2,7 +2,7 @@
 
 /*
     Umihara Kawase Loader by melanite ( https://github.com/melanite/Umihara-Kawase-Loader )
-   
+
     //
         MIT License
 
@@ -104,10 +104,10 @@ static NOINLINE bool init_paths() {
     g_path_root_dir = std_fs::current_path();
     if( !std_fs::exists( g_path_root_dir ) ) {
         // g_log->error( L"bad root directory" );
-    
+
         return false;
     }
-    
+
     // check output dir
     g_path_loader_dir = g_path_root_dir / L"umi_loader";
     if( !std_fs::exists( g_path_loader_dir ) ) {
@@ -142,10 +142,10 @@ static NOINLINE bool init_ini() {
     INIReader ini( g_path_loader_ini.u8string().c_str() );
     if( ini.ParseError() != 0 ) {
         g_log->error( L"Failed to parse INI" );
-    
+
         return false;
     }
-    
+
     // get misc ini stuff
     g_ini_use_keybinds = ini.GetBoolean( "settings", "rebind_keys", false );
 
@@ -157,20 +157,20 @@ static NOINLINE bool init_ini() {
         g_user_keybinds[ 1 ].m_dinput_key = ini.GetInteger( "settings", "KEY_DOWN",  DIK_DOWN  );
         g_user_keybinds[ 2 ].m_dinput_key = ini.GetInteger( "settings", "KEY_LEFT",  DIK_LEFT  );
         g_user_keybinds[ 3 ].m_dinput_key = ini.GetInteger( "settings", "KEY_RIGHT", DIK_RIGHT );
-        
+
         // menu related
         g_user_keybinds[ 4 ].m_dinput_key = ini.GetInteger( "settings", "KEY_START",   DIK_SPACE  );
         g_user_keybinds[ 5 ].m_dinput_key = ini.GetInteger( "settings", "KEY_PAUSE",   DIK_RETURN );
         g_user_keybinds[ 6 ].m_dinput_key = ini.GetInteger( "settings", "KEY_SELECT",  DIK_TAB    );
         g_user_keybinds[ 7 ].m_dinput_key = ini.GetInteger( "settings", "KEY_RESTART", DIK_S      );
         g_user_keybinds[ 8 ].m_dinput_key = ini.GetInteger( "settings", "KEY_BACK",    DIK_ESCAPE );
-        
+
         // gameplay
         g_user_keybinds[ 9 ].m_dinput_key  = ini.GetInteger( "settings", "KEY_JUMP", DIK_Z     );
         g_user_keybinds[ 10 ].m_dinput_key = ini.GetInteger( "settings", "KEY_HOOK", DIK_A     );
         g_user_keybinds[ 11 ].m_dinput_key = ini.GetInteger( "settings", "KEY_L",    DIK_PRIOR );
         g_user_keybinds[ 12 ].m_dinput_key = ini.GetInteger( "settings", "KEY_R",    DIK_NEXT  );
-        
+
         // misc
         g_user_keybinds[ 13 ].m_dinput_key = ini.GetInteger( "settings", "KEY_SKIP", DIK_X );
 
@@ -196,7 +196,7 @@ static NOINLINE bool check_valid_dll( std::wstring_view filename ) {
     const auto file_mapping = CreateFileMappingW( file, nullptr, PAGE_READONLY, 0, 0, 0 );
     if( !file_mapping ) {
         CloseHandle( file );
-    
+
         return false;
     }
 
@@ -204,7 +204,7 @@ static NOINLINE bool check_valid_dll( std::wstring_view filename ) {
     if( !file_base ) {
         CloseHandle( file );
         CloseHandle( file_mapping );
-    
+
         return false;
     }
 
@@ -251,7 +251,7 @@ static NOINLINE bool load_dlls() {
         // skip bad PE file
         if( !check_valid_dll( filename ) ) {
             g_log->error( L"Bad DLL file header: \"{}\"", filename );
-        
+
             continue;
         }
 
@@ -312,10 +312,10 @@ static NOINLINE void modify_input_data( InputData *input_data ) {
     const auto dihr = input_data->m_dinput_device->GetDeviceState( sizeof( m_key_states ), &m_key_states );
     if( dihr != DI_OK )
         return;
-    
+
     // swallow all keys
     input_data->m_key_state = 0;
-    
+
     // check for key(s) being pressed
     for( const auto &b : g_user_keybinds ) {
         // this key is only valid on the first game
@@ -379,15 +379,15 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
         const auto wc = game_name_wstr_rdata[ i ];
         if( wc == L'\0' )
             break;
-    
+
         // skip backslashes, we don't need them
         // the game uses them for filepaths
         if( wc == L'\\' )
             continue;
-    
+
         g_game_ver_str += wc;
     }
-    
+
     // set game version ID
     const auto name_hash = FNV1aHash::get_32( g_game_ver_str );
 
@@ -400,16 +400,16 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
 
         case CT_HASH_32( L"UmiharaKawase Shun SE" ): {
             g_game_ver_id = UMI_GAME_KAWASE_SHUN;
-        
+
             break;
         }
 
         case CT_HASH_32( L"Sayonara Umihara Kawase" ): {
             g_game_ver_id = UMI_GAME_SAYONARA_KAWASE;
-        
+
             break;
         }
-    
+
         default: {
             break;
         }
@@ -422,17 +422,17 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     // set up paths
     if( !init_paths() )
         return 0;
-    
+
     // // spawn a debug console
     // if( !AllocConsole() )
     //     return 0;
-    // 
+    //
     // SetConsoleTitleA( "Umihara Kawase Loader" );
-    
+
     // set up log sinks
     const auto file_sink    = std::make_shared< spdlog::sinks::basic_file_sink_mt >( g_path_loader_log.u8string(), true );
     const auto console_sink = std::make_shared< spdlog::sinks::stdout_color_sink_mt >();
-    
+
     // create multi log sink
     g_log = std::make_shared< spdlog::logger >( "multi_sink", spdlog::sinks_init_list{ file_sink, console_sink } );
 
@@ -452,7 +452,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     // set up ini
     if( !init_ini() ) {
         g_log->error( L"Failed to set up ini" );
-    
+
         return 0;
     }
 
@@ -476,7 +476,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
             g_input_hander_func_addr = Utils::follow_rel_instruction( PatternScan::find( "", "E8 ? ? ? ? B8 ? ? ? ? 8B FF" ) );
 
             key_list_tmp = PatternScan::find( "", "B8 ? ? ? ? 8D 9B ? ? ? ?" );
-        
+
             break;
         }
 
@@ -485,7 +485,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
             g_input_hander_func_addr = Utils::follow_rel_instruction( PatternScan::find( "", "E8 ? ? ? ? FF 35 ? ? ? ? 8B 35 ? ? ? ?" ) );
 
             key_list_tmp = PatternScan::find( "", "B8 ? ? ? ? EB 08" );
-        
+
             break;
         }
 
@@ -498,7 +498,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
 
             // skip over mov reg, imm32
             key_list_tmp += 7;
-        
+
             break;
         }
 
@@ -510,13 +510,13 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     // log...
     if( !g_input_hander_func_addr ) {
         g_log->error( L"Failed to find input handler func" );
-    
+
         return 0;
     }
 
     if( !key_list_tmp ) {
         g_log->error( L"Failed to find key list array" );
-    
+
         return 0;
     }
 
@@ -541,7 +541,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
 
             return 0;
         }
-        
+
         // ... and enable it
         if( !g_input_handler_hook.enable() ) {
             g_log->error( L"Failed to enable input handler hook" );
@@ -572,7 +572,7 @@ int __stdcall DllMain( HINSTANCE instance, ulong_t reason_for_call, void *reserv
         }
 
         CloseHandle( thread );
-    
+
         return 1;
     }
 

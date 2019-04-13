@@ -3,8 +3,13 @@
 #include "includes.h"
 
 namespace PatternScan {
+
+    //
     // code for building pattern data for scanning funcs
+    //
+
     namespace Build {
+
         //
         // wraps a uint8_t and tells us if we should skip it due to a wildcard
         //
@@ -13,23 +18,23 @@ namespace PatternScan {
         private:
             uint8_t m_byte;
             bool    m_is_wildcard;
-        
+
         public:
             FORCEINLINE PatternByte() = default;
-        
+
             FORCEINLINE PatternByte( uint8_t byte, bool is_wildcard ) : m_byte{ byte }, m_is_wildcard{ is_wildcard } {
-        
+
             }
-        
+
             // get byte / wildcard
             FORCEINLINE uint8_t get_byte() const {
                 return m_byte;
             }
-        
+
             FORCEINLINE bool is_wildcard() const {
                 return m_is_wildcard;
             }
-        
+
             // match a byte to stored byte
             FORCEINLINE bool compare( uint8_t other ) const {
                 return m_byte == other || m_is_wildcard;
@@ -88,6 +93,7 @@ namespace PatternScan {
                 return empty() == true;
             }
         };
-
+    
     } // namespace Build
+
 } // namespace PatternScan

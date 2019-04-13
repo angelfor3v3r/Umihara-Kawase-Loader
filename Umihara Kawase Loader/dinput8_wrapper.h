@@ -1,6 +1,7 @@
 #pragma once
 
 namespace Dinput8Wrapper {
+
     //
     // export func prototypes
     //
@@ -33,4 +34,5 @@ namespace Dinput8Wrapper {
 
     // set up export data
     extern NOINLINE bool init();
+
 } // namespace Dinput8Wrapper

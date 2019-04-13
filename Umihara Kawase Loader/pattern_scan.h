@@ -3,6 +3,7 @@
 #include "build_pattern.h"
 
 namespace PatternScan {
+
     // search for an IDA-style pattern in range
     extern NOINLINE uintptr_t find( uintptr_t start, size_t size, std::string_view pattern_str );
 
@@ -23,7 +24,7 @@ namespace PatternScan {
         // get needed module info
         // we only need the start of the code section
         const auto base = (uintptr_t)( GetModuleHandleA( ( module_name.empty() == false ) ? module_name.data() : 0 ) );
-        if( !Utils::get_pe_file_headers( base, dos, nt ) ) 
+        if( !Utils::get_pe_file_headers( base, dos, nt ) )
             return {};
 
         const auto scan_start = Utils::RVA_to_ptr( base, nt->OptionalHeader.BaseOfCode );
@@ -31,7 +32,7 @@ namespace PatternScan {
         // find pattern and cast
         return find< t >( scan_start, size, pattern_str );
     }
-    
+
     // search for pattern in entire module
     template< typename t = uintptr_t > FORCEINLINE t find( std::string_view module_name, std::string_view pattern_str ) {
         IMAGE_DOS_HEADER *dos;
@@ -40,7 +41,7 @@ namespace PatternScan {
         // get needed module info
         // we need the code section start and size
         const auto base = (uintptr_t)( GetModuleHandleA( ( module_name.empty() == false ) ? module_name.data() : 0 ) );
-        if( !Utils::get_pe_file_headers( base, dos, nt ) ) 
+        if( !Utils::get_pe_file_headers( base, dos, nt ) )
             return {};
 
         const auto scan_start = Utils::RVA_to_ptr( base, nt->OptionalHeader.BaseOfCode );
@@ -49,4 +50,5 @@ namespace PatternScan {
         // find pattern and cast
         return find< t >( scan_start, scan_size, pattern_str );
     }
+
 } // namespace PatternScan

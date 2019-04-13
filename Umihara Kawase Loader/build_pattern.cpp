@@ -1,8 +1,13 @@
 #include "build_pattern.h"
 
 namespace PatternScan {
+
+    //
     // code for building pattern data for scanning funcs
+    //
+
     namespace Build {
+
         Pattern::Pattern( std::string_view str ) : m_pattern{} {
             std::string token;
 
@@ -19,7 +24,7 @@ namespace PatternScan {
                 const auto size = token.size();
                 if( !size || size > 2 ) {
                     m_pattern.clear();
-                
+
                     break;
                 }
 
@@ -44,7 +49,7 @@ namespace PatternScan {
                     // not a valid byte
                     if( !is_valid_byte ) {
                         m_pattern.clear();
-                    
+
                         break;
                     }
 
@@ -56,5 +61,7 @@ namespace PatternScan {
                 }
             }
         }
+
     } // namespace Build
+
 } // namespace PatternScan

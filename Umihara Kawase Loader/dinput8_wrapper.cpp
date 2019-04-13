@@ -1,6 +1,7 @@
 #include "includes.h"
 
 namespace Dinput8Wrapper {
+
     //
     // global vars
     //
@@ -57,6 +58,7 @@ namespace Dinput8Wrapper {
     //
 
     extern "C" {
+
         HRESULT __stdcall DirectInput8Create_wrapper( HINSTANCE hinst, DWORD dwVersion, const IID &riidltf, LPVOID *ppvOut, LPUNKNOWN punkOuter ) {
             if( !g_orig_DirectInput8Create )
                 return E_FAIL;
@@ -98,5 +100,7 @@ namespace Dinput8Wrapper {
 
             return g_orig_GetdfDIJoystick();
         }
-    }
+    
+    } // extern "C"
+
 } // namespace Dinput8Wrapper

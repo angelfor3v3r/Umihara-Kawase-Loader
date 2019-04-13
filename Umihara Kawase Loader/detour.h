@@ -7,6 +7,7 @@ static auto g_is_minhook_initialized = false;
 //
 // wrapper class for MinHook
 //
+
 template< typename t > class Detour {
 private:
     uintptr_t m_target;
@@ -19,7 +20,7 @@ public:
         // check minhook status
         // init lib if we have to
         if( !g_is_minhook_initialized ) {
-            const auto mhs = MH_Initialize(); 
+            const auto mhs = MH_Initialize();
             if( mhs == MH_OK )
                 g_is_minhook_initialized = true;
         }
@@ -35,15 +36,15 @@ public:
 
         if( !target || !dest )
             return false;
-        
+
         const auto mhs = MH_CreateHook( (void *)target, dest, (void **)&orig );
         if( mhs != MH_OK )
             return false;
-        
+
         m_target = target;
         m_dest   = dest;
         m_orig   = orig;
-        
+
         return true;
     }
 
@@ -72,7 +73,7 @@ public:
         }
 
         g_log->info( L"Hooked function: 0x{:X} -> 0x{:X}", m_target, (uintptr_t)m_dest );
-    
+
         return true;
     }
 

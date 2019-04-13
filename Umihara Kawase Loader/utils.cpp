@@ -1,6 +1,7 @@
 #include "includes.h"
 
 namespace Utils {
+
     NOINLINE bool get_pe_file_headers( uintptr_t base, PIMAGE_DOS_HEADER &out_dos, PIMAGE_NT_HEADERS &out_nt ) {
         if( !base )
             return false;
@@ -25,7 +26,8 @@ namespace Utils {
 
         out_dos = dos;
         out_nt  = nt;
-    
+
         return true;
     }
+
 } // namespace Utils

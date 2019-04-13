@@ -1,11 +1,13 @@
 #pragma once
 
-//
-// hash base type (unsigned integers only)
-//
-
 namespace FNV1aHash {
+
     namespace T {
+
+        //
+        // hash base type (unsigned integers only)
+        //
+
         template< typename t, typename = std::enable_if_t< std::is_unsigned< t >::value > > class HashBase {
         private:
             t m_value;
@@ -26,5 +28,7 @@ namespace FNV1aHash {
                 return get();
             }
         };
+
     } // namespace T
+
 } // namespace FNV1aHash

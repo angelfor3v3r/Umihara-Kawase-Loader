@@ -1,6 +1,7 @@
 #include "pattern_scan.h"
 
 namespace PatternScan {
+
     NOINLINE uintptr_t find( uintptr_t start, size_t size, std::string_view pattern_str ) {
         if( !start || !size || pattern_str.empty() )
             return 0;
@@ -23,4 +24,5 @@ namespace PatternScan {
 
         return ( it != scan_end ) ? (uintptr_t)it : 0;
     }
+
 } // namespace PatternScan
