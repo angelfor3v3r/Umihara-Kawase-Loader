@@ -59,9 +59,11 @@ enum KeyStates : uint32_t {
     // menu related
     UMI_KEY_START   = 0x10000, // DIK_SPACE
     UMI_KEY_PAUSE   = 0x4000,  // DIK_RETURN, DIK_NUMPADENTER
-    UMI_KEY_SELECT  = 0x8000,  // DIK_TAB
     UMI_KEY_RESTART = 0x10,    // DIK_S, DIK_Y
     UMI_KEY_BACK    = 0x20000, // DIK_ESCAPE, DIK_LCONTROL, DIK_RCONTROL
+
+    // NOTE: this key is only valid on the first game (UmiharaKawase)
+    UMI_KEY_SELECT  = 0x8000, // DIK_TAB
 
     // gameplay
     UMI_KEY_JUMP = 0x20,  // DIK_Z

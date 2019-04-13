@@ -17,6 +17,49 @@
 */
 
 //
+// misc defs / vars
+//
+
+enum GameVersion : int8_t {
+    UMI_GAME_INVALID = -1,
+    UMI_GAME_KAWASE,
+    UMI_GAME_KAWASE_SHUN,
+    UMI_GAME_SAYONARA_KAWASE
+};
+
+class UserKeyData {
+public:
+    uint32_t m_dinput_key;
+    uint32_t m_umi_key_state;
+};
+
+// user keybinds
+// default m_dinput_key value is changed in INI
+static std::vector< UserKeyData > g_user_keybinds = {
+    // movement and move UI selection keys
+    { DIK_UP,     UMI_KEY_UP    },
+    { DIK_DOWN,   UMI_KEY_DOWN  },
+    { DIK_LEFT,   UMI_KEY_LEFT  },
+    { DIK_RIGHT,  UMI_KEY_RIGHT },
+
+    // menu related
+    { DIK_SPACE,  UMI_KEY_START   },
+    { DIK_RETURN, UMI_KEY_PAUSE   },
+    { DIK_TAB,    UMI_KEY_SELECT  }, // NOTE: this key is only valid on the first game (UmiharaKawase)
+    { DIK_S,      UMI_KEY_RESTART },
+    { DIK_ESCAPE, UMI_KEY_BACK    },
+
+    // gameplay
+    { DIK_Z,     UMI_KEY_JUMP },
+    { DIK_A,     UMI_KEY_HOOK },
+    { DIK_PRIOR, UMI_KEY_L    },
+    { DIK_NEXT,  UMI_KEY_R    },
+
+    // misc
+    { DIK_X, UMI_KEY_SKIP }
+};
+
+//
 // fwd declare funcs
 //
 
@@ -38,8 +81,10 @@ static std_fs::path g_path_loader_log;
 static std_fs::path g_path_loader_ini;
 
 // game related funcs / vars
-static uintptr_t g_input_hander_func_addr = 0;
-static uint32_t  *g_key_list              = nullptr;
+static uintptr_t    g_input_hander_func_addr = 0;
+static std::wstring g_game_ver_str           = L"";
+static int8_t       g_game_ver_id            = UMI_GAME_INVALID;
+static uint32_t     *g_key_list              = nullptr;
 
 // hooks
 static Detour< input_handler_t > g_input_handler_hook;
@@ -49,42 +94,6 @@ static Detour< input_handler_t > g_input_handler_hook;
 //
 
 static auto g_ini_use_keybinds = false;
-
-//
-// misc defs / vars
-//
-
-class UserKeyData {
-public:
-    uint32_t m_dinput_key;
-    uint32_t m_umi_key_state;
-};
-
-// user keybinds
-// default m_dinput_key value is changed in INI
-static std::vector< UserKeyData > g_user_keybinds = {
-    // movement and move UI selection keys
-    { DIK_UP,     UMI_KEY_UP    },
-    { DIK_DOWN,   UMI_KEY_DOWN  },
-    { DIK_LEFT,   UMI_KEY_LEFT  },
-    { DIK_RIGHT,  UMI_KEY_RIGHT },
-
-    // menu related
-    { DIK_SPACE,  UMI_KEY_START   },
-    { DIK_RETURN, UMI_KEY_PAUSE   },
-    { DIK_TAB,    UMI_KEY_SELECT  },
-    { DIK_S,      UMI_KEY_RESTART },
-    { DIK_ESCAPE, UMI_KEY_BACK    },
-
-    // gameplay
-    { DIK_Z,     UMI_KEY_JUMP },
-    { DIK_A,     UMI_KEY_HOOK },
-    { DIK_PRIOR, UMI_KEY_L    },
-    { DIK_NEXT,  UMI_KEY_R    },
-
-    // misc
-    { DIK_X, UMI_KEY_SKIP }
-};
 
 //
 // misc funcs
@@ -213,7 +222,7 @@ static NOINLINE bool check_valid_dll( std::wstring_view filename ) {
 static NOINLINE bool load_dlls() {
     g_log->info( L"Trying to load extra DLLs (if any)" );
 
-    auto loaded_amt = uint32_t{ 0 };
+    uint32_t loaded_amt = 0;
 
     // iterate files
     for( const auto &f : std::filesystem::directory_iterator( g_path_loader_dll_dir ) ) {
@@ -259,7 +268,7 @@ static NOINLINE bool load_dlls() {
         g_log->info( L"Loaded DLL: \"{}\"", filename );
     }
 
-    g_log->info( L"Extra DLL loading done, loaded {} {}", loaded_amt, ( loaded_amt > 1 ) ? L"DLLs" : L"DLL" );
+    g_log->info( L"Extra DLL loading done, loaded {} {}", loaded_amt, ( loaded_amt == 1 ) ? L"DLL" : L"DLLs" );
 
     return true;
 }
@@ -303,24 +312,20 @@ static NOINLINE void modify_input_data( InputData *input_data ) {
     const auto dihr = input_data->m_dinput_device->GetDeviceState( sizeof( m_key_states ), &m_key_states );
     if( dihr != DI_OK )
         return;
+    
+    // swallow all keys
+    input_data->m_key_state = 0;
+    
+    // check for key(s) being pressed
+    for( const auto &b : g_user_keybinds ) {
+        // this key is only valid on the first game
+        // skip on other games
+        if( b.m_umi_key_state == UMI_KEY_SELECT && g_game_ver_id != UMI_GAME_KAWASE )
+            continue;
 
-    // check if user wants to rebind keys
-    if( g_ini_use_keybinds ) {
-        // swallow all keys
-        input_data->m_key_state = 0;
-
-        // init key flag
-        auto key_flag = uint32_t{ 0 };
-
-        // check for key(s) being pressed
-        for( const auto &b : g_user_keybinds ) {
-            // key is pressed, add to keybind flag
-            if( is_key_pressed( b.m_dinput_key ) )
-                key_flag |= b.m_umi_key_state;
-        }
-
-        // set final key
-        input_data->m_key_state = key_flag;
+        // key is pressed, add to keybind flag
+        if( is_key_pressed( b.m_dinput_key ) )
+            input_data->m_key_state |= b.m_umi_key_state;
     }
 }
 
@@ -353,16 +358,62 @@ static NOINLINE int __fastcall input_handler( InputData *input_data, uintptr_t e
 //
 
 static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
+    uintptr_t found_name_str = 0;
+
     // this is pretty silly but my guess is the steam DRM unpacking routine takes a bit to finish (???)
-    // wait until the input handler is found...
+    // find reference to game path wstring
     do {
-        // find jmp to input handler func
-        g_input_hander_func_addr = PatternScan::find( "", "E8 ? ? ? ? B8 ? ? ? ? 8B FF" );
-        
+        found_name_str = PatternScan::find( "", "0F B7 8A ? ? ? ? 66 85 C9 75 EA 33 C9 66 89 0C 46 EB 77" );
+
         // give CPU some time
         Sleep( 100 );
     }
-    while( g_input_hander_func_addr == 0 );
+    while( found_name_str == 0 );
+
+    // get name location in rdata
+    const auto game_name_wstr_rdata = *(wchar_t **)( found_name_str + 3 );
+
+    // read out name wide string manually
+    for( size_t i = 0; ; ++i ) {
+        // get current byte
+        const auto wc = game_name_wstr_rdata[ i ];
+        if( wc == L'\0' )
+            break;
+    
+        // skip backslashes, we don't need them
+        // the game uses them for filepaths
+        if( wc == L'\\' )
+            continue;
+    
+        g_game_ver_str += wc;
+    }
+    
+    // set game version ID
+    const auto name_hash = FNV1aHash::get_32( g_game_ver_str );
+
+    switch( name_hash ) {
+        case CT_HASH_32( L"UmiharaKawase" ): {
+            g_game_ver_id = UMI_GAME_KAWASE;
+
+            break;
+        }
+
+        case CT_HASH_32( L"UmiharaKawase Shun SE" ): {
+            g_game_ver_id = UMI_GAME_KAWASE_SHUN;
+        
+            break;
+        }
+
+        case CT_HASH_32( L"Sayonara Umihara Kawase" ): {
+            g_game_ver_id = UMI_GAME_SAYONARA_KAWASE;
+        
+            break;
+        }
+    
+        default: {
+            break;
+        }
+    }
 
     //
     // initialize
@@ -387,7 +438,17 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
 
     g_log->flush_on( spdlog::level::info );
     g_log->set_pattern( "[Umihara Kawase Loader] [%D %T.%e] [%^%l%$] - %v" );
-    
+
+    // check game version
+    if( g_game_ver_id == UMI_GAME_INVALID ) {
+        g_log->error( L"Failed to identify game version" );
+
+        return 0;
+    }
+
+    // print game version info
+    g_log->info( L"Game: \"{}\" ({})", g_game_ver_str, g_game_ver_id );
+
     // set up ini
     if( !init_ini() ) {
         g_log->error( L"Failed to set up ini" );
@@ -406,50 +467,89 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     // sig scan, etc
     //
 
-    // find input handler func
-    // follow relative jmp
-    g_input_hander_func_addr = Utils::follow_rel_instruction( g_input_hander_func_addr );
+    uintptr_t key_list_tmp;
+
+    // find sigs on each game
+    switch( g_game_ver_id ) {
+        case UMI_GAME_KAWASE: {
+            // follow relative jmp
+            g_input_hander_func_addr = Utils::follow_rel_instruction( PatternScan::find( "", "E8 ? ? ? ? B8 ? ? ? ? 8B FF" ) );
+
+            key_list_tmp = PatternScan::find( "", "B8 ? ? ? ? 8D 9B ? ? ? ?" );
+        
+            break;
+        }
+
+        case UMI_GAME_KAWASE_SHUN: {
+            // follow relative jmp
+            g_input_hander_func_addr = Utils::follow_rel_instruction( PatternScan::find( "", "E8 ? ? ? ? FF 35 ? ? ? ? 8B 35 ? ? ? ?" ) );
+
+            key_list_tmp = PatternScan::find( "", "B8 ? ? ? ? EB 08" );
+        
+            break;
+        }
+
+        case UMI_GAME_SAYONARA_KAWASE: {
+            g_input_hander_func_addr = Utils::follow_rel_instruction( PatternScan::find( "", "E8 ? ? ? ? FF 35 ? ? ? ? 8B 35 ? ? ? ?" ) );
+
+            key_list_tmp = PatternScan::find( "", "89 86 ? ? ? ? B8 ? ? ? ? EB 08" );
+            if( !key_list_tmp )
+                break;
+
+            // skip over mov reg, imm32
+            key_list_tmp += 7;
+        
+            break;
+        }
+
+        default: {
+            return 0;
+        }
+    }
+
+    // log...
     if( !g_input_hander_func_addr ) {
         g_log->error( L"Failed to find input handler func" );
-
+    
         return 0;
     }
 
-    g_log->info( L"Input handler func: 0x{:X}", g_input_hander_func_addr );
-
-    // find key list
-    auto tmp = PatternScan::find( "", "B8 ? ? ? ? 8D 9B ? ? ? ?" );
-    if( !tmp ) {
+    if( !key_list_tmp ) {
         g_log->error( L"Failed to find key list array" );
-
+    
         return 0;
     }
 
+    // get key list now
     // actual key list starts 4 bytes back
-    g_key_list  = *(uint32_t **)( tmp );
+    g_key_list  = *(uint32_t **)key_list_tmp;
     g_key_list -= 1;
 
+    // log...
+    g_log->info( L"Input handler func: 0x{:X}", g_input_hander_func_addr );
     g_log->info( L"Key list array: 0x{:X}", (uintptr_t)g_key_list );
 
     //
     // set up hooks
     //
 
-    // set up hooks
-    if( !g_input_handler_hook.init( g_input_hander_func_addr, &input_handler ) ) {
-        g_log->error( L"Failed to initialize input handler hook" );
+    // check if user wants to rebind keys
+    if( g_ini_use_keybinds ) {
+        // hook input handler
+        if( !g_input_handler_hook.init( g_input_hander_func_addr, &input_handler ) ) {
+            g_log->error( L"Failed to initialize input handler hook" );
 
-        return 0;
+            return 0;
+        }
+        
+        // ... and enable it
+        if( !g_input_handler_hook.enable() ) {
+            g_log->error( L"Failed to enable input handler hook" );
+
+            return 0;
+        }
     }
-    
-    // enable hooks
-    if( !g_input_handler_hook.enable() ) {
-        g_log->error( L"Failed to enable input handler hook" );
 
-        return 0;
-    }
-
-    // finished...
     g_log->info( L"Initialization done..." );
 
     return 1;

@@ -165,6 +165,8 @@
     <ClInclude Include="build_pattern.h" />
     <ClInclude Include="detour.h" />
     <ClInclude Include="dinput8_wrapper.h" />
+    <ClInclude Include="hash.h" />
+    <ClInclude Include="hash_base.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="pattern_scan.h" />
     <ClInclude Include="sdk.h" />

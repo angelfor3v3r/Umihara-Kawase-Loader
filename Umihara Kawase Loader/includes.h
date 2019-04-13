@@ -58,6 +58,7 @@ using ulong_t = unsigned long;
 #include <optional>
 #include <filesystem>
 #include <fstream>
+#include <type_traits>
 
 // dinput
 #include <dinput.h>
@@ -88,6 +89,7 @@ extern std::shared_ptr< spdlog::logger > g_log;
 #include "dinput8_wrapper.h"
 
 // misc
+#include "hash.h"
 #include "utils.h"
 #include "pattern_scan.h"
 #include "detour.h"
