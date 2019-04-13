@@ -24,7 +24,11 @@ bld/
 [Oo]bj/
 [Ll]og/
 
+# exclude build dll
 [Bb]uild/*.dll
+
+# keep _most_ inside umi_loader folder
+# !/[Bb]uild/umi_loader/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
