@@ -13,7 +13,7 @@ namespace FNV1aHash {
             t m_value;
 
         public:
-            FORCEINLINE constexpr HashBase() = default;
+            constexpr HashBase() = default;
 
             FORCEINLINE constexpr HashBase( const t &value ) : m_value{ value } {
 

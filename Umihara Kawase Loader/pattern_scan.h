@@ -23,7 +23,7 @@ namespace PatternScan {
 
         // get needed module info
         // we only need the start of the code section
-        const auto base = (uintptr_t)( GetModuleHandleA( ( module_name.empty() == false ) ? module_name.data() : 0 ) );
+        const auto base = (uintptr_t)( GetModuleHandleA( ( !module_name.empty() ) ? module_name.data() : 0 ) );
         if( !Utils::get_pe_file_headers( base, dos, nt ) )
             return {};
 
@@ -40,7 +40,7 @@ namespace PatternScan {
 
         // get needed module info
         // we need the code section start and size
-        const auto base = (uintptr_t)( GetModuleHandleA( ( module_name.empty() == false ) ? module_name.data() : 0 ) );
+        const auto base = (uintptr_t)( GetModuleHandleA( ( !module_name.empty() ) ? module_name.data() : 0 ) );
         if( !Utils::get_pe_file_headers( base, dos, nt ) )
             return {};
 

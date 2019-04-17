@@ -1,5 +1,7 @@
 #pragma once
 
+#include "includes.h"
+
 namespace Dinput8Wrapper {
 
     //

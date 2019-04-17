@@ -124,7 +124,7 @@
       <EnableModules>false</EnableModules>
       <CallingConvention>Cdecl</CallingConvention>
       <CompileAs>CompileAsCpp</CompileAs>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\inih;$(SolutionDir)\dependencies\spdlog-1.3.1\include;$(SolutionDir)\dependencies\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\spdlog-1.3.1\include;$(SolutionDir)\dependencies\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zc:threadSafeInit- /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <WholeProgramOptimization>false</WholeProgramOptimization>
     </ClCompile>
@@ -159,6 +159,7 @@
   <ItemGroup>
     <ClCompile Include="build_pattern.cpp" />
     <ClCompile Include="dinput8_wrapper.cpp" />
+    <ClCompile Include="ini_parser.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pattern_scan.cpp" />
     <ClCompile Include="utils.cpp" />
@@ -170,7 +171,9 @@
     <ClInclude Include="hash.h" />
     <ClInclude Include="hash_base.h" />
     <ClInclude Include="includes.h" />
+    <ClInclude Include="ini_parser.h" />
     <ClInclude Include="pattern_scan.h" />
+    <ClInclude Include="safe_handle.h" />
     <ClInclude Include="sdk.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

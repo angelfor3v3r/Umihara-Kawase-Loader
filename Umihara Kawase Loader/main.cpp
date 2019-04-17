@@ -21,17 +21,11 @@
 // misc defs / vars
 //
 
-enum GameVersion : int8_t {
-    UMI_GAME_INVALID = -1,
-    UMI_GAME_KAWASE,
-    UMI_GAME_KAWASE_SHUN,
-    UMI_GAME_SAYONARA_KAWASE
-};
-
+// info about each user keybind
 class UserKeyData {
 public:
-    uint32_t m_dinput_key;
-    uint32_t m_umi_key_state;
+    uint32_t m_dinput_key;    // user keybind (dinput)
+    uint32_t m_umi_key_state; // key used by game
 };
 
 // user keybinds
@@ -61,10 +55,6 @@ static std::vector< UserKeyData > g_user_keybinds = {
 };
 
 //
-// fwd declare funcs
-//
-
-//
 // global vars
 //
 
@@ -75,13 +65,13 @@ std::shared_ptr< spdlog::logger > g_log;
 static std_fs::path g_path_root_dir;
 static std_fs::path g_path_loader_dir;
 static std_fs::path g_path_loader_dll_dir;
-static std_fs::path g_path_loader_log;
 static std_fs::path g_path_loader_ini;
+static std_fs::path g_path_loader_log;
 
 // game related funcs / vars
 static uintptr_t    g_input_hander_func_addr = 0;
-static std::wstring g_game_ver_str           = L"";
-static int8_t       g_game_ver_id            = UMI_GAME_INVALID;
+static std::wstring g_game_name              = L"";
+static int8_t       g_game_id                = UMI_GAME_INVALID;
 static uint32_t     *g_key_list              = nullptr;
 
 // hooks
@@ -97,80 +87,108 @@ static auto g_ini_use_keybinds = false;
 // misc funcs
 //
 
-static NOINLINE bool init_paths() {
+static NOINLINE void init_failed( std::wstring_view error ) {
+    const auto title_msg = fmt::format( L"[Umihara Kawase Loader] Error: {}", error );
+
+    MessageBoxW(
+        nullptr,
+        L"Initialization failed.\n\n"
+        L"Ensure loader DLL and directories are set up properly.\n\n"
+        L"If you believe this is an error then please report this to the developer at:\n"
+        L"https://github.com/melanite/Umihara-Kawase-Loader",
+        title_msg.c_str(),
+        MB_ICONERROR
+    );
+
+    ExitProcess( 0 );
+}
+
+static NOINLINE void init_paths() {
     // check exe path dir
     g_path_root_dir = std_fs::current_path();
     if( !std_fs::exists( g_path_root_dir ) ) {
-        // g_log->error( L"bad root directory" );
+        init_failed( L"Invalid game root directory" );
 
-        return false;
+        return;
     }
 
     // check output dir
     g_path_loader_dir = g_path_root_dir / L"umi_loader";
     if( !std_fs::exists( g_path_loader_dir ) ) {
-        // g_log->error( L"\"umi_loader\" directory doesn't exist -- you need this from the release ZIP and it must be in the game install directory" );
+        init_failed( L"Invalid loader root directory" );
 
-        return false;
+        return;
     }
 
     // check dll dir
     g_path_loader_dll_dir = g_path_loader_dir / L"dlls";
     if( !std_fs::exists( g_path_loader_dir ) ) {
-        // g_log->error( L"\"umi_loader/dlls"\ directory doesn't exist -- you need this from the release ZIP and it must be in the game install directory" );
+        init_failed( L"Invalid loader dlls root directory" );
 
-        return false;
+        return;
+    }
+
+    // check INI file
+    g_path_loader_ini = g_path_loader_dir / L"config.ini";
+    if( !std_fs::exists( g_path_loader_ini ) ) {
+        init_failed( L"config.ini not found" );
+
+        return;
     }
 
     // get output log path
     g_path_loader_log = g_path_loader_dir / L"log.txt";
-
-    return true;
 }
 
 static NOINLINE bool init_ini() {
-    // check ini file
-    g_path_loader_ini = g_path_loader_dir / L"config.ini";
-    if( !std_fs::exists( g_path_loader_ini ) ) {
-        g_log->error( L"\"umi_loader/config.ini\" file doesn't exist -- you need this from the release ZIP and it must be in the umi_loader directory; loader will NOT run" );
+    INIParser ini;
+
+    // get keybind from file, keep track of index
+    static auto get_ini_keybind = [ & ]( std::wstring_view section_name, std::wstring_view value_name, uint32_t default_value ) {
+        static size_t cur_idx = 0;
+
+        // get entry @ index, go to next
+        const auto entry = &g_user_keybinds[ cur_idx++ ];
+
+        // set dinput key in vector
+        entry->m_dinput_key = ini.get_value_uint32( section_name, value_name, default_value );
+    };
+
+    ini = INIParser( g_path_loader_ini.wstring() );
+    if( !ini.is_valid() ) {
+        init_failed( L"INI parse error" );
 
         return false;
     }
 
-    INIReader ini( g_path_loader_ini.u8string().c_str() );
-    if( ini.ParseError() != 0 ) {
-        g_log->error( L"Failed to parse INI" );
+    // get misc INI stuff
+    g_ini_use_keybinds = ini.get_value_bool( L"settings", L"rebind_keys", false );
 
-        return false;
-    }
-
-    // get misc ini stuff
-    g_ini_use_keybinds = ini.GetBoolean( "settings", "rebind_keys", false );
-
-    // get keybinds from ini
-    // this sucks, but it must be done in order...
+    // get keybinds from INI
     if( g_ini_use_keybinds ) {
-        // movement and move UI selection keys
-        g_user_keybinds[ 0 ].m_dinput_key = ini.GetInteger( "settings", "KEY_UP",    DIK_UP    );
-        g_user_keybinds[ 1 ].m_dinput_key = ini.GetInteger( "settings", "KEY_DOWN",  DIK_DOWN  );
-        g_user_keybinds[ 2 ].m_dinput_key = ini.GetInteger( "settings", "KEY_LEFT",  DIK_LEFT  );
-        g_user_keybinds[ 3 ].m_dinput_key = ini.GetInteger( "settings", "KEY_RIGHT", DIK_RIGHT );
+        // this sucks, but it must be done in order...
 
-        // menu related
-        g_user_keybinds[ 4 ].m_dinput_key = ini.GetInteger( "settings", "KEY_START",   DIK_SPACE  );
-        g_user_keybinds[ 5 ].m_dinput_key = ini.GetInteger( "settings", "KEY_PAUSE",   DIK_RETURN );
-        g_user_keybinds[ 6 ].m_dinput_key = ini.GetInteger( "settings", "KEY_SELECT",  DIK_TAB    );
-        g_user_keybinds[ 7 ].m_dinput_key = ini.GetInteger( "settings", "KEY_RESTART", DIK_S      );
-        g_user_keybinds[ 8 ].m_dinput_key = ini.GetInteger( "settings", "KEY_BACK",    DIK_ESCAPE );
+        // movement and move UI selection keybinds
+        get_ini_keybind( L"settings", L"KEY_UP",    DIK_UP    );
+        get_ini_keybind( L"settings", L"KEY_DOWN",  DIK_DOWN  );
+        get_ini_keybind( L"settings", L"KEY_LEFT",  DIK_LEFT  );
+        get_ini_keybind( L"settings", L"KEY_RIGHT", DIK_RIGHT );
 
-        // gameplay
-        g_user_keybinds[ 9 ].m_dinput_key  = ini.GetInteger( "settings", "KEY_JUMP", DIK_Z     );
-        g_user_keybinds[ 10 ].m_dinput_key = ini.GetInteger( "settings", "KEY_HOOK", DIK_A     );
-        g_user_keybinds[ 11 ].m_dinput_key = ini.GetInteger( "settings", "KEY_L",    DIK_PRIOR );
-        g_user_keybinds[ 12 ].m_dinput_key = ini.GetInteger( "settings", "KEY_R",    DIK_NEXT  );
+        // menu related keybinds
+        get_ini_keybind( L"settings", L"KEY_START",   DIK_SPACE  );
+        get_ini_keybind( L"settings", L"KEY_PAUSE",   DIK_RETURN );
+        get_ini_keybind( L"settings", L"KEY_SELECT",  DIK_TAB    );
+        get_ini_keybind( L"settings", L"KEY_RESTART", DIK_S      );
+        get_ini_keybind( L"settings", L"KEY_BACK",    DIK_ESCAPE );
 
-        // misc
-        g_user_keybinds[ 13 ].m_dinput_key = ini.GetInteger( "settings", "KEY_SKIP", DIK_X );
+        // gameplay keybinds
+        get_ini_keybind( L"settings", L"KEY_JUMP", DIK_Z     );
+        get_ini_keybind( L"settings", L"KEY_HOOK", DIK_A     );
+        get_ini_keybind( L"settings", L"KEY_L",    DIK_PRIOR );
+        get_ini_keybind( L"settings", L"KEY_R",    DIK_NEXT  );
+
+        // misc keybinds
+        get_ini_keybind( L"settings", L"KEY_SKIP", DIK_X );
 
         g_log->info( L"Extracted keybinds from INI" );
     }
@@ -188,17 +206,19 @@ static NOINLINE bool check_valid_dll( std::wstring_view filename ) {
     auto file = std::ifstream( filename, ( std::ios::ate | std::ios::binary ) );
     if( !file )
         return false;
-    
+
     // get filesize
-    const auto file_size = file.rdbuf()->pubseekoff( 0, std::ios_base::cur, std::ios_base::in );
-    
+    const auto file_size = file.tellg();
+    if( file_size == -1 )
+        return false;
+
     // go back to start, since we opened at the end
     file.seekg( 0 );
-    
-    // allocate buffer
+
+    // allocate buffer for file
     auto file_buffer = std::vector< char >( (size_t)file_size );
-    
-    // read file to buffer
+
+    // read file contents to buffer
     if( !file.read( file_buffer.data(), file_size ) )
         return false;
 
@@ -219,15 +239,23 @@ static NOINLINE bool load_dlls() {
     g_log->info( L"Trying to load extra DLLs (if any)" );
 
     // iterate files
-    for( const auto &f : std::filesystem::directory_iterator( g_path_loader_dll_dir ) ) {
+    for( const auto &f : std::filesystem::recursive_directory_iterator( g_path_loader_dll_dir ) ) {
         // skip bad files
-        if( !f.exists() || f.is_directory() )
+        if( !f.exists() ) {
+            g_log->warn( L"Invalid DLL filepath (1)" );
+
+            continue;
+        }
+
+        // "recursive_directory_iterator" will always go into directories but we must skip them
+        // since they will be treated as "files"
+        if( f.is_directory() )
             continue;
 
         // convert to path object
         const auto cur_file = f.path();
         if( cur_file.empty() ) {
-            // g_log->error( L"Bad DLL filepath" );
+            g_log->warn( L"Invalid DLL filepath (2)" );
 
             continue;
         }
@@ -237,21 +265,21 @@ static NOINLINE bool load_dlls() {
 
         // skip bad extensions
         if( cur_file.extension() != L".dll" ) {
-            g_log->error( L"Bad DLL extension: \"{}\"", filename );
+            g_log->warn( L"Invalid DLL extension: \"{}\"", filename );
 
             continue;
         }
 
-        // skip bad PE file
+        // skip bad PE files
         if( !check_valid_dll( filename ) ) {
-            g_log->error( L"Invalid DLL file: \"{}\"", filename );
+            g_log->warn( L"Invalid DLL file: \"{}\"", filename );
 
             continue;
         }
 
         // try to load it
         if( !LoadLibraryW( filename.c_str() ) ) {
-            g_log->error( L"Failed to map DLL: \"{}\"", filename );
+            g_log->warn( L"Failed to map DLL: \"{}\"", filename );
 
             continue;
         }
@@ -268,7 +296,7 @@ static NOINLINE bool load_dlls() {
 }
 
 static NOINLINE std::optional< uint32_t > umi_key_to_dinput_key( uint32_t key ) {
-    // array in rdata size, etc
+    // array in .rdata size, etc
     constexpr auto KEY_LIST_SIZE_BYTES = uint32_t{ 0x90 };
     constexpr auto KEY_LIST_SIZE       = KEY_LIST_SIZE_BYTES / sizeof( uint32_t );
 
@@ -284,29 +312,29 @@ static NOINLINE std::optional< uint32_t > umi_key_to_dinput_key( uint32_t key ) 
     return {};
 }
 
-static NOINLINE void modify_input_data( InputData *input_data ) {
+static NOINLINE void modify_input_data( InputData *data ) {
     uint8_t m_key_states[ 256 ];
 
     // check for dinput keypress flag
-    static auto is_key_pressed = [ & ]( uint8_t sc ) {
+    static auto is_key_pressed = [ & ]( uint8_t sc ) -> bool {
         return ( m_key_states[ sc ] & 0x80 );
     };
 
     // make sure data is valid first
-    if( !input_data || !input_data->m_dinput_device )
+    if( !data || !data->m_dinput_device )
         return;
 
     // only do this if we're in focus
-    if( input_data->m_focus_flag != UMI_FOCUSED )
+    if( data->m_focus_flag != UMI_FOCUSED )
         return;
 
     // capture keyboard state
-    const auto dihr = input_data->m_dinput_device->GetDeviceState( sizeof( m_key_states ), &m_key_states );
+    const auto dihr = data->m_dinput_device->GetDeviceState( sizeof( m_key_states ), &m_key_states );
     if( dihr != DI_OK )
         return;
 
     // swallow all keys
-    input_data->m_key_state = 0;
+    data->m_key_state = 0;
 
     // check for key(s) being pressed
     for( const auto &b : g_user_keybinds ) {
@@ -317,7 +345,7 @@ static NOINLINE void modify_input_data( InputData *input_data ) {
 
         // key is pressed, add to keybind flag
         if( is_key_pressed( b.m_dinput_key ) )
-            input_data->m_key_state |= b.m_umi_key_state;
+            data->m_key_state |= b.m_umi_key_state;
     }
 }
 
@@ -325,22 +353,16 @@ static NOINLINE void modify_input_data( InputData *input_data ) {
 // hooked funcs
 //
 
-static NOINLINE int __fastcall input_handler( InputData *input_data, uintptr_t edx ) {
-    // the ret address we care about...
-    // check return address
-    // we only care about keyboard input handler
-    // seems like this is called in 3 different places with a different structure ptr
-    // static const auto ret_1 = g_exe_base + 0x3FE9;
-
+static NOINLINE int __fastcall input_handler_hook( InputData *data, uintptr_t edx ) {
     // store original function
     static const auto orig = g_input_handler_hook.get_orig_func();
 
     // let original run first
     // the game will fill out the input data structure
-    const auto ret = orig( input_data );
+    const auto ret = orig( data );
 
-    if( true /* (uintptr_t)( _ReturnAddress() ) == ret_1 */ )
-        modify_input_data( input_data );
+    // send inputs as needed
+    modify_input_data( data );
 
     return ret;
 }
@@ -350,54 +372,62 @@ static NOINLINE int __fastcall input_handler( InputData *input_data, uintptr_t e
 //
 
 static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
-    uintptr_t found_name_str = 0;
+    // 100ms
+    constexpr ulong_t INIT_WAIT_TIME = 100;
+
+    // 10 seconds
+    constexpr ulong_t MAX_INIT_WAIT_TIME = INIT_WAIT_TIME * 100;
+
+    ulong_t   total_wait_time = 0;
+    uintptr_t found_name_str  = 0;
 
     // this is pretty silly but my guess is the steam DRM unpacking routine takes a bit to finish (???)
     // find reference to game path wstring
     do {
         found_name_str = PatternScan::find( "", "0F B7 8A ? ? ? ? 66 85 C9 75 EA 33 C9 66 89 0C 46 EB 77" );
 
+        // keep track of total sleep time
+        total_wait_time += INIT_WAIT_TIME;
+        if( total_wait_time > MAX_INIT_WAIT_TIME ) {
+            init_failed( L"Invalid game or outdated signatures" );
+
+            return 0;
+        }
+
         // give CPU some time
-        Sleep( 100 );
+        Sleep( INIT_WAIT_TIME );
     }
-    while( found_name_str == 0 );
+    while( !found_name_str );
 
-    // get name location in rdata
-    const auto game_name_wstr_rdata = *(wchar_t **)( found_name_str + 3 );
+    // get name location in .rdata
+    found_name_str = *(uintptr_t *)( found_name_str + 3 );
 
-    // read out name wide string manually
-    for( size_t i = 0; ; ++i ) {
-        // get current byte
-        const auto wc = game_name_wstr_rdata[ i ];
-        if( wc == L'\0' )
-            break;
+    // initialize string from location in .rdata
+    g_game_name = std::wstring( (wchar_t *)found_name_str );
+    if( g_game_name.empty() )
+        return 0;
 
-        // skip backslashes, we don't need them
-        // the game uses them for filepaths
-        if( wc == L'\\' )
-            continue;
+    // remove backslashes from the game name string, we don't need them
+    // the games use them for filepaths
+    g_game_name.erase( std::remove( g_game_name.begin(), g_game_name.end(), L'\\' ), g_game_name.end() );
 
-        g_game_ver_str += wc;
-    }
-
+    // check game name hash
     // set game version ID
-    const auto name_hash = FNV1aHash::get_32( g_game_ver_str );
-
-    switch( name_hash ) {
+    switch( FNV1aHash::get_32( g_game_name ) ) {
         case CT_HASH_32( L"UmiharaKawase" ): {
-            g_game_ver_id = UMI_GAME_KAWASE;
+            g_game_id = UMI_GAME_KAWASE;
 
             break;
         }
 
         case CT_HASH_32( L"UmiharaKawase Shun SE" ): {
-            g_game_ver_id = UMI_GAME_KAWASE_SHUN;
+            g_game_id = UMI_GAME_KAWASE_SHUN;
 
             break;
         }
 
         case CT_HASH_32( L"Sayonara Umihara Kawase" ): {
-            g_game_ver_id = UMI_GAME_SAYONARA_KAWASE;
+            g_game_id = UMI_GAME_SAYONARA_KAWASE;
 
             break;
         }
@@ -412,14 +442,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     //
 
     // set up paths
-    if( !init_paths() )
-        return 0;
-
-    // // spawn a debug console
-    // if( !AllocConsole() )
-    //     return 0;
-    //
-    // SetConsoleTitleA( "Umihara Kawase Loader" );
+    init_paths();
 
     // set up log sinks
     const auto file_sink    = std::make_shared< spdlog::sinks::basic_file_sink_mt >( g_path_loader_log.u8string(), true );
@@ -428,18 +451,19 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     // create multi log sink
     g_log = std::make_shared< spdlog::logger >( "multi_sink", spdlog::sinks_init_list{ file_sink, console_sink } );
 
+    // set spdlog behaviour
     g_log->flush_on( spdlog::level::info );
     g_log->set_pattern( "[Umihara Kawase Loader] [%D %T.%e] [%^%l%$] - %v" );
 
     // check game version
-    if( g_game_ver_id == UMI_GAME_INVALID ) {
-        g_log->error( L"Failed to identify game version" );
+    if( g_game_id == UMI_GAME_INVALID ) {
+        g_log->error( L"Failed to identify game version (1)" );
 
         return 0;
     }
 
     // print game version info
-    g_log->info( L"Game: \"{}\" ({})", g_game_ver_str, g_game_ver_id );
+    g_log->info( L"Game: \"{}\" (ID: {})", g_game_name, g_game_id );
 
     // set up ini
     if( !init_ini() ) {
@@ -456,13 +480,13 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     }
 
     //
-    // sig scan, etc
+    // sigscan, etc
     //
 
     uintptr_t key_list_tmp;
 
     // find sigs on each game
-    switch( g_game_ver_id ) {
+    switch( g_game_id ) {
         case UMI_GAME_KAWASE: {
             // follow relative jmp
             g_input_hander_func_addr = Utils::follow_rel_instruction( PatternScan::find( "", "E8 ? ? ? ? B8 ? ? ? ? 8B FF" ) );
@@ -488,18 +512,21 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
             if( !key_list_tmp )
                 break;
 
-            // skip over mov reg, imm32
+            // skip over (mov [reg+disp32], reg)
+            // (modrm = 2, 0, 6)
             key_list_tmp += 7;
 
             break;
         }
 
         default: {
+            g_log->error( L"Failed to identify game version (2)" );
+
             return 0;
         }
     }
 
-    // valid?
+    // valid sigs?
     if( !g_input_hander_func_addr ) {
         g_log->error( L"Failed to find input handler func" );
 
@@ -528,7 +555,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
     // check if user wants to rebind keys
     if( g_ini_use_keybinds ) {
         // hook input handler
-        if( !g_input_handler_hook.init( g_input_hander_func_addr, &input_handler ) ) {
+        if( !g_input_handler_hook.init( g_input_hander_func_addr, &input_handler_hook ) ) {
             g_log->error( L"Failed to initialize input handler hook" );
 
             return 0;
@@ -542,7 +569,7 @@ static NOINLINE ulong_t __stdcall init_thread( void *arg ) {
         }
     }
 
-    g_log->info( L"Initialization done..." );
+    g_log->info( L"Initialized!" );
 
     return 1;
 }
@@ -552,15 +579,16 @@ int __stdcall DllMain( HINSTANCE instance, ulong_t reason_for_call, void *reserv
         // set up dinput8.dll wrapper
         // this must be done first
         // our init thread routine must wait
-        if( !Dinput8Wrapper::init() )
+        if( !Dinput8Wrapper::init() ) {
+            init_failed( L"Failed to load original dinput8.dll" );
+
             return 0;
+        }
 
         // ... now create our init thread
-        const auto thread = CreateThread( nullptr, 0, init_thread, nullptr, 0, nullptr );
+        const auto thread = SHandle( CreateThread( nullptr, 0, init_thread, nullptr, 0, nullptr ) );
         if( !thread )
             return 0;
-
-        CloseHandle( thread );
 
         return 1;
     }

@@ -71,7 +71,7 @@ namespace FNV1aHash {
     //
 
     // 32-bit hash
-    constexpr hash32_t ct_get_32( uint8_t *data, size_t len ) {
+    FORCEINLINE constexpr hash32_t ct_get_32( uint8_t *data, size_t len ) {
         hash32_t out = T::FNV_BASIS_32;
 
         for( size_t i = 0; i < len; ++i )
@@ -80,7 +80,7 @@ namespace FNV1aHash {
         return out;
     }
 
-    constexpr hash32_t ct_get_32( std::string_view str ) {
+    FORCEINLINE constexpr hash32_t ct_get_32( std::string_view str ) {
         hash32_t out = T::FNV_BASIS_32;
 
         for( const auto &c : str )
@@ -89,7 +89,7 @@ namespace FNV1aHash {
         return out;
     }
 
-    constexpr hash32_t ct_get_32( std::wstring_view wstr ) {
+    FORCEINLINE constexpr hash32_t ct_get_32( std::wstring_view wstr ) {
         hash32_t out = T::FNV_BASIS_32;
 
         for( const auto &wc : wstr )

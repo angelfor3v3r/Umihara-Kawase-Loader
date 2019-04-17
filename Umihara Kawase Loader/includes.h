@@ -13,9 +13,11 @@
 #define _CRT_SECURE_INVALID_PARAMETER
 #define _CRT_SECURE_NO_WARNINGS
 
+// #define FMT_THROW( x ) ( abort() )
 #define SPDLOG_WCHAR_TO_UTF8_SUPPORT
 
 #define FINI_WIDE_SUPPORT
+#define INIP_USE_UNICODE
 
 // no min(a,b) / max(a,b) macros
 #define NOMINMAX
@@ -48,17 +50,18 @@ using ulong_t = unsigned long;
 #include <Psapi.h>
 #include <intrin.h>
 #include <cstdint>
-#include <iostream>
+#include <type_traits>
+#include <limits>
 #include <cctype>
+#include <optional>
+#include <iostream>
 #include <array>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <algorithm>
-#include <optional>
 #include <filesystem>
 #include <fstream>
-#include <type_traits>
 
 // dinput
 #include <dinput.h>
@@ -68,7 +71,6 @@ using ulong_t = unsigned long;
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
-#include "INIReader.h"
 #include "MinHook.h"
 
 //
@@ -90,7 +92,10 @@ extern std::shared_ptr< spdlog::logger > g_log;
 
 // misc
 #include "hash.h"
+#include "safe_handle.h"
 #include "utils.h"
 #include "pattern_scan.h"
 #include "detour.h"
+#include "ini_parser.h"
+
 #include "sdk.h"

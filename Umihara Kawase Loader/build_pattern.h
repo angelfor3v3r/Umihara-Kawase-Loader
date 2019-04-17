@@ -49,7 +49,6 @@ namespace PatternScan {
         private:
             // types
             using container_t       = std::vector< PatternByte >;
-            using container_iter_t  = container_t::iterator;
             using container_citer_t = container_t::const_iterator;
 
             // vector for our pattern bytes
@@ -57,6 +56,7 @@ namespace PatternScan {
 
         public:
             Pattern() = default;
+
             NOINLINE Pattern( std::string_view str );
 
             // returns pattern vector
@@ -93,7 +93,7 @@ namespace PatternScan {
                 return empty() == true;
             }
         };
-    
+
     } // namespace Build
 
 } // namespace PatternScan

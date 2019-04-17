@@ -1,4 +1,4 @@
-#include "includes.h"
+#include "dinput8_wrapper.h"
 
 namespace Dinput8Wrapper {
 
@@ -20,7 +20,7 @@ namespace Dinput8Wrapper {
     //
     // funcs
     //
-    
+
     // set up export data
     NOINLINE bool init() {
         PWSTR path;
@@ -72,35 +72,35 @@ namespace Dinput8Wrapper {
 
             return g_orig_DllCanUnloadNow();
         }
-        
+
         HRESULT __stdcall DllGetClassObject_wrapper( const IID &rclsid, const IID &riid, LPVOID *ppv ) {
             if( !g_orig_DllGetClassObject )
                 return E_FAIL;
 
             return g_orig_DllGetClassObject( rclsid, riid, ppv );
         }
-        
+
         HRESULT __stdcall DllRegisterServer_wrapper() {
             if( !g_orig_DllRegisterServer )
                 return E_FAIL;
 
             return g_orig_DllRegisterServer();
         }
-        
+
         HRESULT __stdcall DllUnregisterServer_wrapper() {
             if( !g_orig_DllUnregisterServer )
                 return E_FAIL;
 
             return g_orig_DllUnregisterServer();
         }
-        
+
         LPCDIDATAFORMAT __stdcall GetdfDIJoystick_wrapper() {
             if( !g_orig_GetdfDIJoystick )
                 return nullptr;
 
             return g_orig_GetdfDIJoystick();
         }
-    
+
     } // extern "C"
 
 } // namespace Dinput8Wrapper

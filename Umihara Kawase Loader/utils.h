@@ -17,10 +17,10 @@ namespace Utils {
         if( !op )
             return {};
 
-        const auto rel = *(int *)( op + 1 );
+        const auto rel = *(int32_t *)( op + 1 );
         if( !rel )
             return {};
-        
+
         // skip 5-byte instruction to next
         // ... and add relative disp
         return (t)( ( op + 5 ) + rel );
