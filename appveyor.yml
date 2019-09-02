@@ -5,8 +5,8 @@ platform: x86
 
 environment:
   matrix:
-  - solution_name: /dependencies/minhook/build/VC15/Umihara Kawase Loader.sln
-  - solution_name: Umihara Kawase Loader.sln
+  - solution_name: "./dependencies/minhook/build/VC15/Umihara Kawase Loader.sln"
+  - solution_name: "./Umihara Kawase Loader.sln"
 
 build_script:
   - msbuild %solution_name%
