@@ -4,9 +4,9 @@
     Umihara Kawase Loader by melanite ( https://github.com/melanite/Umihara-Kawase-Loader )
 
     //
-        MIT License
-
-        Copyright (c) 2019 Melanite
+    // MIT License
+    //
+    // Copyright (c) 2019 Melanite
     //
 
     Credits and thanks to:
