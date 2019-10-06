@@ -6,7 +6,7 @@
     //
     // MIT License
     //
-    // Copyright (c) 2019 Melanite
+    // Copyright (c) 2019 angelfor3v3r (AKA. melanite)
     //
 
     Credits and thanks to:
